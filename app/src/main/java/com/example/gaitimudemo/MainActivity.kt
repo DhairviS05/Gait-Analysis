@@ -73,9 +73,6 @@ fun GaitIMUScreen() {
     var mmg1 by remember { mutableStateOf("--") }
     var mmg2 by remember { mutableStateOf("--") }
     var mmg3 by remember { mutableStateOf("--") }
-    var mmg4 by remember { mutableStateOf("--") }
-    var mmg5 by remember { mutableStateOf("--") }
-    var mmg6 by remember { mutableStateOf("--") }
 
     var serialPort by remember { mutableStateOf<UsbSerialPort?>(null) }
     var usbConnection by remember {
@@ -84,6 +81,7 @@ fun GaitIMUScreen() {
     var readJob by remember { mutableStateOf<Job?>(null) }
 
     var recording by remember { mutableStateOf(false) }
+    var patientName by remember { mutableStateOf("") }
     var csvFile by remember { mutableStateOf<File?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -151,16 +149,21 @@ fun GaitIMUScreen() {
 //    }
 
     // Arduino format:
-// DATA,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3,mmg4,mmg5,mmg6
+// DATA,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3
     val processLine: (String) -> Unit = { line ->
         val parts = line.trim().split(",")
 
-        // Expect 14 fields: DATA + 13 numeric values.
-        if (parts.size == 14 && parts[0].trim() == "DATA") {
+        // Expect 11 fields: DATA + 10 numeric values.
+        if (parts.size == 11 && parts[0].trim() == "DATA") {
             val values = parts.drop(1).map { it.trim() }
 
             if (values.all { it.toFloatOrNull() != null }) {
-                timestamp = values[0]
+
+                // Generate the calendar timestamp using the phone's clock.
+                timestamp = SimpleDateFormat(
+                    "MM-dd-yyyy.HH.mm.ss",
+                    Locale.US
+                ).format(Date())
 
                 // Accelerometer
                 ax = values[1]
@@ -172,19 +175,19 @@ fun GaitIMUScreen() {
                 gy = values[5]
                 gz = values[6]
 
-                // Six MMG sensors
+                // Three MMG sensors
                 mmg1 = values[7]
                 mmg2 = values[8]
                 mmg3 = values[9]
-                mmg4 = values[10]
-                mmg5 = values[11]
-                mmg6 = values[12]
 
-                // Save all 13 numeric values when recording.
+                // Save calendar timestamp and sensor values.
+                // Do not save the Arduino millis() value.
                 if (recording) {
                     try {
+                        val csvRow = listOf(timestamp) + values.drop(1)
+
                         fileOutput?.write(
-                            (values.joinToString(",") + "\n")
+                            (csvRow.joinToString(",") + "\n")
                                 .toByteArray(Charsets.UTF_8)
                         )
                     } catch (e: Exception) {
@@ -397,6 +400,16 @@ fun GaitIMUScreen() {
 
             Text("Connection: $connectionStatus")
 
+            OutlinedTextField(
+                value = patientName,
+                onValueChange = { patientName = it },
+                label = { Text("Patient name") },
+                placeholder = { Text("Enter patient name") },
+                singleLine = true,
+                enabled = !recording,
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Button(
                 enabled = serialPort == null,
                 onClick = {
@@ -486,7 +499,7 @@ fun GaitIMUScreen() {
 
             HorizontalDivider()
 
-            Text("Timestamp (ms): $timestamp")
+            Text("Timestamp: $timestamp")
 
             Text("Accelerometer (g)")
             Text("AX: $ax     AY: $ay     AZ: $az")
@@ -501,37 +514,62 @@ fun GaitIMUScreen() {
                 style = MaterialTheme.typography.titleMedium
             )
 
-            Text("MMG 1: $mmg1     MMG 2: $mmg2")
-            Text("MMG 3: $mmg3     MMG 4: $mmg4")
-            Text("MMG 5: $mmg5     MMG 6: $mmg6")
+            Text("MMG 1: $mmg1")
+            Text("MMG 2: $mmg2")
+            Text("MMG 3: $mmg3")
 
             Text("Recording: $recordingStatus")
 
             Button(
-                enabled = serialPort != null && !recording,
+                enabled = serialPort != null &&
+                        !recording &&
+                        patientName.isNotBlank(),
                 onClick = {
-                    try {
-                        val name = "gait_" +
-                                SimpleDateFormat(
-                                    "yyyyMMdd_HHmmss_SSS",
-                                    Locale.US
-                                ).format(Date()) + ".csv"
+                    val enteredPatientName = patientName.trim()
 
-                        val file = File(context.filesDir, name)
-                        fileOutput = context.openFileOutput(
-                            name,
-                            Context.MODE_PRIVATE
-                        )
-                        fileOutput?.write(
-                            "time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3,mmg4,mmg5,mmg6\n"
-                                .toByteArray(Charsets.UTF_8)
-                        )
-                        csvFile = file
-                        recording = true
-                        recordingStatus = "Recording to $name"
-                    } catch (e: Exception) {
-                        recording = false
-                        recordingStatus = "File error: ${e.message}"
+                    if (enteredPatientName.isBlank()) {
+                        recordingStatus = "Please enter the patient name first."
+                    } else {
+                        try {
+                            val fileTimestamp = SimpleDateFormat(
+                                "yyyyMMdd_HHmmss",
+                                Locale.US
+                            ).format(Date())
+
+                            val safePatientName = enteredPatientName.replace(
+                                Regex("[^a-zA-Z0-9_-]"),
+                                "_"
+                            )
+
+                            val name = "${safePatientName}_${fileTimestamp}.csv"
+
+                            val file = File(context.filesDir, name)
+
+                            fileOutput = context.openFileOutput(
+                                name,
+                                Context.MODE_PRIVATE
+                            )
+
+                            fileOutput?.write(
+                                "timestamp,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3\n"
+                                    .toByteArray(Charsets.UTF_8)
+                            )
+
+                            csvFile = file
+                            recording = true
+                            recordingStatus = "Recording: $enteredPatientName"
+
+                        } catch (e: Exception) {
+                            recording = false
+                            recordingStatus = "File error: ${e.message}"
+
+                            try {
+                                fileOutput?.close()
+                            } catch (_: Exception) {
+                            }
+
+                            fileOutput = null
+                        }
                     }
                 }
             ) {
@@ -541,16 +579,35 @@ fun GaitIMUScreen() {
             Button(
                 enabled = recording,
                 onClick = {
+                    var saveSuccessful = false
+
                     try {
                         fileOutput?.flush()
+                            ?: throw Exception("Recording file is not open")
+
                         fileOutput?.close()
+                        fileOutput = null
+
+                        saveSuccessful = true
                         recordingStatus =
                             "Saved: ${csvFile?.name ?: "CSV file"}"
+
                     } catch (e: Exception) {
                         recordingStatus = "Save/close error: ${e.message}"
+
+                        try {
+                            fileOutput?.close()
+                        } catch (_: Exception) {
+                        }
+
+                        fileOutput = null
+
                     } finally {
                         recording = false
-                        fileOutput = null
+
+                        if (saveSuccessful) {
+                            patientName = ""
+                        }
                     }
                 }
             ) {
