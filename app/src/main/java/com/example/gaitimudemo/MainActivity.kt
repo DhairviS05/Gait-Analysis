@@ -1,4 +1,3 @@
-
 package com.example.gaitimudemo
 
 import android.app.PendingIntent
@@ -84,6 +83,26 @@ fun GaitIMUScreen() {
     var patientName by remember { mutableStateOf("") }
     var csvFile by remember { mutableStateOf<File?>(null) }
 
+    var calibrationStatus by remember {
+        mutableStateOf("Waiting for Arduino...")
+    }
+
+    var calibrationStarted by remember {
+        mutableStateOf(false)
+    }
+
+    var calibrationRemaining by remember {
+        mutableIntStateOf(10)
+    }
+
+    var calibrationReady by remember {
+        mutableStateOf(false)
+    }
+
+    var calibrationError by remember {
+        mutableStateOf(false)
+    }
+
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
@@ -151,15 +170,94 @@ fun GaitIMUScreen() {
     // Arduino format:
 // DATA,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3
     val processLine: (String) -> Unit = { line ->
+
         val parts = line.trim().split(",")
 
-        // Expect 11 fields: DATA + 10 numeric values.
+        // =============================================
+        // 1. HANDLE STATUS MESSAGES
+        // =============================================
+
+        if (parts.isNotEmpty() && parts[0] == "STATUS") {
+
+            when (parts.getOrNull(1)) {
+
+                "CALIBRATION_STARTED" -> {
+
+                    calibrationStarted = true
+                    calibrationReady = false
+                    calibrationError = false
+                    calibrationRemaining = 10
+
+                    calibrationStatus = "Calibration started"
+                }
+
+                "CALIBRATION" -> {
+
+                    val remaining =
+                        parts.getOrNull(2)?.toIntOrNull()
+
+                    if (remaining != null) {
+
+                        calibrationStarted = true
+                        calibrationRemaining = remaining
+                        calibrationReady = false
+
+                        calibrationStatus = "Calibrating..."
+                    }
+                }
+
+                "CALIBRATION_COMPLETE" -> {
+
+                    calibrationStarted = false
+                    calibrationRemaining = 0
+                    calibrationReady = true
+                    calibrationError = false
+
+                    calibrationStatus =
+                        "Calibration Complete — Ready to Record"
+                }
+
+                "CALIBRATION_ERROR" -> {
+
+                    calibrationStarted = false
+                    calibrationReady = false
+                    calibrationError = true
+
+                    calibrationStatus =
+                        "Calibration failed. Restart the device."
+                }
+
+                "IMU_ERROR" -> {
+
+                    calibrationStarted = false
+                    calibrationReady = false
+                    calibrationError = true
+
+                    calibrationStatus =
+                        "IMU initialization failed"
+                }
+            }
+        }
+
+        // =============================================
+        // 2. HANDLE SENSOR DATA
+        // =============================================
+
+        // Expected format:
+        // DATA,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3
+
         if (parts.size == 11 && parts[0].trim() == "DATA") {
+
             val values = parts.drop(1).map { it.trim() }
 
-            if (values.all { it.toFloatOrNull() != null }) {
+            val validTime = values[0].toLongOrNull() != null
 
-                // Generate the calendar timestamp using the phone's clock.
+            val validSensors = values.drop(1).all {
+                it.toFloatOrNull() != null
+            }
+
+            if (validTime && validSensors) {
+
                 timestamp = SimpleDateFormat(
                     "MM-dd-yyyy.HH.mm.ss",
                     Locale.US
@@ -175,24 +273,29 @@ fun GaitIMUScreen() {
                 gy = values[5]
                 gz = values[6]
 
-                // Three MMG sensors
+                // MMG
                 mmg1 = values[7]
                 mmg2 = values[8]
                 mmg3 = values[9]
 
-                // Save calendar timestamp and sensor values.
-                // Do not save the Arduino millis() value.
+                // Save CSV only during recording.
                 if (recording) {
+
                     try {
-                        val csvRow = listOf(timestamp) + values.drop(1)
+
+                        val csvRow = listOf(timestamp) + values
 
                         fileOutput?.write(
                             (csvRow.joinToString(",") + "\n")
                                 .toByteArray(Charsets.UTF_8)
                         )
+
                     } catch (e: Exception) {
+
                         recording = false
-                        recordingStatus = "File error: ${e.message}"
+
+                        recordingStatus =
+                            "File error: ${e.message}"
 
                         try {
                             fileOutput?.close()
@@ -400,6 +503,49 @@ fun GaitIMUScreen() {
 
             Text("Connection: $connectionStatus")
 
+            HorizontalDivider()
+
+            Text(
+                "Gyroscope Calibration",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            Text(
+                calibrationStatus,
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            if (calibrationStarted && !calibrationReady && !calibrationError) {
+
+                Text(
+                    "$calibrationRemaining seconds remaining",
+                    style = MaterialTheme.typography.headlineMedium
+                )
+
+            } else if (calibrationReady) {
+
+                Text(
+                    "✓ Calibration Complete",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+            } else if (calibrationError) {
+
+                Text(
+                    "Please check the sensor and restart.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+            } else {
+
+                Text(
+                    "Waiting for Arduino to start calibration...",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            HorizontalDivider()
+
             OutlinedTextField(
                 value = patientName,
                 onValueChange = { patientName = it },
@@ -413,6 +559,12 @@ fun GaitIMUScreen() {
             Button(
                 enabled = serialPort == null,
                 onClick = {
+                    calibrationStarted = false
+                    calibrationReady = false
+                    calibrationError = false
+                    calibrationRemaining = 10
+                    calibrationStatus = "Waiting for Arduino..."
+
                     try {
                         val manager =
                             context.getSystemService(Context.USB_SERVICE)
@@ -460,6 +612,11 @@ fun GaitIMUScreen() {
             Button(
                 enabled = serialPort != null,
                 onClick = {
+                    calibrationReady = false
+                    calibrationError = false
+                    calibrationRemaining = 10
+                    calibrationStatus = "Waiting for Arduino calibration status..."
+
                     readJob?.cancel()
                     readJob = null
 
@@ -525,55 +682,81 @@ fun GaitIMUScreen() {
                         !recording &&
                         patientName.isNotBlank(),
                 onClick = {
-                    val enteredPatientName = patientName.trim()
+                    if (!calibrationReady) {
 
-                    if (enteredPatientName.isBlank()) {
-                        recordingStatus = "Please enter the patient name first."
-                    } else {
                         try {
-                            val fileTimestamp = SimpleDateFormat(
-                                "yyyyMMdd_HHmmss",
-                                Locale.US
-                            ).format(Date())
+                            calibrationStarted = false
+                            calibrationError = false
+                            calibrationRemaining = 10
+                            calibrationStatus = "Sending calibration command to Arduino..."
 
-                            val safePatientName = enteredPatientName.replace(
-                                Regex("[^a-zA-Z0-9_-]"),
-                                "_"
-                            )
+                            val command = "CALIBRATE\n".toByteArray(Charsets.UTF_8)
 
-                            val name = "${safePatientName}_${fileTimestamp}.csv"
-
-                            val file = File(context.filesDir, name)
-
-                            fileOutput = context.openFileOutput(
-                                name,
-                                Context.MODE_PRIVATE
-                            )
-
-                            fileOutput?.write(
-                                "timestamp,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3\n"
-                                    .toByteArray(Charsets.UTF_8)
-                            )
-
-                            csvFile = file
-                            recording = true
-                            recordingStatus = "Recording: $enteredPatientName"
+                            serialPort?.write(command, 1000)
 
                         } catch (e: Exception) {
-                            recording = false
-                            recordingStatus = "File error: ${e.message}"
 
+                            calibrationStatus = "Calibration command failed: ${e.message}"
+                            calibrationError = true
+                        }
+
+                    } else {
+                        val enteredPatientName = patientName.trim()
+
+                        if (enteredPatientName.isBlank()) {
+                            recordingStatus = "Please enter the patient name first."
+                        } else {
                             try {
-                                fileOutput?.close()
-                            } catch (_: Exception) {
-                            }
+                                val fileTimestamp = SimpleDateFormat(
+                                    "yyyyMMdd_HHmmss",
+                                    Locale.US
+                                ).format(Date())
 
-                            fileOutput = null
+                                val safePatientName = enteredPatientName.replace(
+                                    Regex("[^a-zA-Z0-9_-]"),
+                                    "_"
+                                )
+
+                                val name = "${safePatientName}_${fileTimestamp}.csv"
+
+                                val file = File(context.filesDir, name)
+
+                                fileOutput = context.openFileOutput(
+                                    name,
+                                    Context.MODE_PRIVATE
+                                )
+
+                                fileOutput?.write(
+                                    "timestamp,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3\n"
+                                        .toByteArray(Charsets.UTF_8)
+                                )
+
+                                csvFile = file
+                                recording = true
+                                recordingStatus = "Recording: $enteredPatientName"
+
+                            } catch (e: Exception) {
+                                recording = false
+                                recordingStatus = "File error: ${e.message}"
+
+                                try {
+                                    fileOutput?.close()
+                                } catch (_: Exception) {
+                                }
+
+                                fileOutput = null
+                            }
                         }
                     }
                 }
             ) {
-                Text("Start Recording")
+                Text(
+                    if (calibrationReady) {
+                        "Start Recording"
+                    } else {
+                        "Calibrate for New Session"
+                    }
+                )
             }
 
             Button(
@@ -605,6 +788,13 @@ fun GaitIMUScreen() {
                     } finally {
                         recording = false
 
+                        // Reset calibration state for the next session
+                        calibrationStarted = false
+                        calibrationReady = false
+                        calibrationError = false
+                        calibrationRemaining = 10
+
+                        calibrationStatus = "Calibration required for next session"
                         if (saveSuccessful) {
                             patientName = ""
                         }
