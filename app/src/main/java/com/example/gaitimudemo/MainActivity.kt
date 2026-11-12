@@ -103,6 +103,22 @@ fun GaitIMUScreen() {
         mutableStateOf(false)
     }
 
+    fun clearSensorValues() {
+        ax = "--"
+        ay = "--"
+        az = "--"
+
+        gx = "--"
+        gy = "--"
+        gz = "--"
+
+        mmg1 = "--"
+        mmg2 = "--"
+        mmg3 = "--"
+
+        timestamp = "--"
+    }
+
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
@@ -256,7 +272,7 @@ fun GaitIMUScreen() {
                 it.toFloatOrNull() != null
             }
 
-            if (validTime && validSensors) {
+            if (validTime && validSensors && calibrationReady) {
 
                 timestamp = SimpleDateFormat(
                     "MM-dd-yyyy.HH.mm.ss",
@@ -346,6 +362,14 @@ fun GaitIMUScreen() {
                         serialPort = port
                         usbConnection = connection
                         connectionStatus = "Connected — receiving data"
+                        calibrationStarted = false
+                        calibrationReady = false
+                        calibrationError = false
+                        calibrationRemaining = 10
+
+                        calibrationStatus = "Preparing gyroscope calibration..."
+
+                        clearSensorValues()
 
                         readJob?.cancel()
                         readJob = scope.launch(Dispatchers.IO) {
@@ -398,6 +422,7 @@ fun GaitIMUScreen() {
                                 }
                             }
                         }
+
                     } catch (e: Exception) {
                         try {
                             connection.close()
@@ -552,12 +577,14 @@ fun GaitIMUScreen() {
                 label = { Text("Patient name") },
                 placeholder = { Text("Enter patient name") },
                 singleLine = true,
-                enabled = !recording,
+                enabled = !recording && serialPort == null,
                 modifier = Modifier.fillMaxWidth()
             )
 
             Button(
-                enabled = serialPort == null,
+                enabled = serialPort == null &&
+                        !recording &&
+                        patientName.isNotBlank(),
                 onClick = {
                     calibrationStarted = false
                     calibrationReady = false
@@ -656,31 +683,37 @@ fun GaitIMUScreen() {
 
             HorizontalDivider()
 
-            Text("Timestamp: $timestamp")
+            if (calibrationReady) {
 
-            Text("Accelerometer (g)")
-            Text("AX: $ax     AY: $ay     AZ: $az")
+                Text("Timestamp: $timestamp")
 
-            Text("Gyroscope (°/s)")
-            Text("GX: $gx     GY: $gy     GZ: $gz")
+                Text("Accelerometer (g)")
+                Text("AX: $ax     AY: $ay     AZ: $az")
 
-            HorizontalDivider()
+                Text("Gyroscope (°/s)")
+                Text("GX: $gx     GY: $gy     GZ: $gz")
 
-            Text(
-                "MMG Sensors",
-                style = MaterialTheme.typography.titleMedium
-            )
+                HorizontalDivider()
 
-            Text("MMG 1: $mmg1")
-            Text("MMG 2: $mmg2")
-            Text("MMG 3: $mmg3")
+                Text(
+                    "MMG Sensors",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text("MMG 1: $mmg1")
+                Text("MMG 2: $mmg2")
+                Text("MMG 3: $mmg3")
+
+            } else {
+
+                Text("Sensor readings will appear after calibration.")
+            }
 
             Text("Recording: $recordingStatus")
 
             Button(
                 enabled = serialPort != null &&
-                        !recording &&
-                        patientName.isNotBlank(),
+                        !recording,
                 onClick = {
                     if (!calibrationReady) {
 
