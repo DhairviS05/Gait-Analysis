@@ -1,16 +1,17 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 android {
-    namespace = "com.example.gaitimudemo"
+    namespace = "com.robobionics.gaitimudemo"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.gaitimudemo"
+        applicationId = "com.robobionics.gaitimudemo"
         minSdk = 26
         targetSdk = 37
         versionCode = 1
@@ -52,5 +53,9 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation("com.github.mik3y:usb-serial-for-android:3.9.0")
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
 
 }

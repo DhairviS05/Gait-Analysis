@@ -1,4 +1,4 @@
-package com.example.gaitimudemo
+package com.robobionics.gaitimudemo
 
 import org.junit.Test
 

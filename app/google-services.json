@@ -1,0 +1,227 @@
+{
+  "project_info": {
+    "project_number": "764735496082",
+    "project_id": "grippyanalytics",
+    "storage_bucket": "grippyanalytics.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764735496082:android:d0b86131e48cdb3cf76b4b",
+        "android_client_info": {
+          "package_name": "com.example.dash_fanclub_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOngTom92B_QvZFjK1NMv9oag8woRGWfA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764735496082:android:463ecf61445d7e96f76b4b",
+        "android_client_info": {
+          "package_name": "com.robobionics.gaitimudemo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOngTom92B_QvZFjK1NMv9oag8woRGWfA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764735496082:android:2fbc595220686454f76b4b",
+        "android_client_info": {
+          "package_name": "com.robobionics.grippy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "764735496082-7277ooe705bt1k9gqq6f6jcvrqf7rc19.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.grippy",
+            "certificate_hash": "958ec65478d9f373d2123736a5f8d3faf77fde8b"
+          }
+        },
+        {
+          "client_id": "764735496082-c623jdl305dsquovmr2h96ak3k1ainnq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.grippy",
+            "certificate_hash": "6a2e51382ac005f4d61fe0c2a626bf0939f9a605"
+          }
+        },
+        {
+          "client_id": "764735496082-isocbrnjb96nh79bld2e1smotos1pla0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.grippy",
+            "certificate_hash": "fcbb10c2e4059aef0a5a23f5040114f51fcf7d15"
+          }
+        },
+        {
+          "client_id": "764735496082-jrsjrffrno03jo89t7tuobgot4jf0n8d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.grippy",
+            "certificate_hash": "02a0a305771322d898c512201407730f9273f389"
+          }
+        },
+        {
+          "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOngTom92B_QvZFjK1NMv9oag8woRGWfA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764735496082:android:99c2b3b3d474b0a9f76b4b",
+        "android_client_info": {
+          "package_name": "com.robobionics.robobionics"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "764735496082-51nh77p996gmehc3mv9kjgc06m4mnhio.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.robobionics",
+            "certificate_hash": "958ec65478d9f373d2123736a5f8d3faf77fde8b"
+          }
+        },
+        {
+          "client_id": "764735496082-60iqpgsa57b32adogevasp0ulcvo83hi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.robobionics",
+            "certificate_hash": "6a2e51382ac005f4d61fe0c2a626bf0939f9a605"
+          }
+        },
+        {
+          "client_id": "764735496082-7qde223maqbuvk38cjicha1qjlnebeme.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.robobionics",
+            "certificate_hash": "375d6a72900fdefa0fa8e712f7fff48d4c2d3b89"
+          }
+        },
+        {
+          "client_id": "764735496082-bb406cavcg2jsfpshnjtms4ldvsbkctb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.robobionics",
+            "certificate_hash": "5072a5b7144f0e4561b6c5a30a683dfb3c72ffec"
+          }
+        },
+        {
+          "client_id": "764735496082-mdfrlpujns5egu8m2ve8uop8v6p09a8k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.robobionics.robobionics",
+            "certificate_hash": "fcbb10c2e4059aef0a5a23f5040114f51fcf7d15"
+          }
+        },
+        {
+          "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOngTom92B_QvZFjK1NMv9oag8woRGWfA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:764735496082:android:b27db662a1e05397f76b4b",
+        "android_client_info": {
+          "package_name": "com.verygoodventures.super_dash"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOngTom92B_QvZFjK1NMv9oag8woRGWfA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "764735496082-6pu9vvamt3993o3jjda0taijmlo95pi5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

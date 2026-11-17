@@ -1,4 +1,4 @@
-package com.example.gaitimudemo
+package com.robobionics.gaitimudemo
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

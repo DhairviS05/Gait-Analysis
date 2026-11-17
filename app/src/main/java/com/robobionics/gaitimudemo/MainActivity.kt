@@ -1,4 +1,5 @@
-package com.example.gaitimudemo
+package com.robobionics.gaitimudemo
+import com.robobionics.gaitimudemo.data.GaitFirebaseRepository
 
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
@@ -17,7 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.gaitimudemo.ui.theme.GaitIMUDemoTheme
+import com.robobionics.gaitimudemo.ui.theme.GaitIMUDemoTheme
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +40,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 
 private const val USB_PERMISSION_ACTION =
-    "com.example.gaitimudemo.USB_PERMISSION"
+    "com.robobionics.gaitimudemo.USB_PERMISSION"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -57,6 +58,14 @@ class MainActivity : ComponentActivity() {
 fun GaitIMUScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val firebaseRepository = remember {
+        GaitFirebaseRepository()
+    }
+
+    var uploadStatus by remember {
+        mutableStateOf("Not uploaded")
+    }
 
     var connectionStatus by remember { mutableStateOf("Not connected") }
     var recordingStatus by remember { mutableStateOf("Not recording") }
@@ -103,6 +112,15 @@ fun GaitIMUScreen() {
         mutableStateOf(false)
     }
 
+    var roll by remember { mutableStateOf("--") }
+    var pitch by remember { mutableStateOf("--") }
+    var yaw by remember { mutableStateOf("--") }
+
+    var q0 by remember { mutableStateOf(1.0) }
+    var q1 by remember { mutableStateOf(0.0) }
+    var q2 by remember { mutableStateOf(0.0) }
+    var q3 by remember { mutableStateOf(0.0) }
+
     fun clearSensorValues() {
         ax = "--"
         ay = "--"
@@ -115,6 +133,10 @@ fun GaitIMUScreen() {
         mmg1 = "--"
         mmg2 = "--"
         mmg3 = "--"
+
+        roll = "--"
+        pitch = "--"
+        yaw = "--"
 
         timestamp = "--"
     }
@@ -262,7 +284,7 @@ fun GaitIMUScreen() {
         // Expected format:
         // DATA,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3
 
-        if (parts.size == 11 && parts[0].trim() == "DATA") {
+        if (parts.size == 18 && parts[0].trim() == "DATA") {
 
             val values = parts.drop(1).map { it.trim() }
 
@@ -293,6 +315,17 @@ fun GaitIMUScreen() {
                 mmg1 = values[7]
                 mmg2 = values[8]
                 mmg3 = values[9]
+
+                // Complementary Filter Orientation
+                roll = values[10]
+                pitch = values[11]
+                yaw = values[12]
+
+                // Quaternion Orientation
+                q0 = values[13].toDouble()
+                q1 = values[14].toDouble()
+                q2 = values[15].toDouble()
+                q3 = values[16].toDouble()
 
                 // Save CSV only during recording.
                 if (recording) {
@@ -704,12 +737,28 @@ fun GaitIMUScreen() {
                 Text("MMG 2: $mmg2")
                 Text("MMG 3: $mmg3")
 
+                HorizontalDivider()
+
+                Text(
+                    "Complementary Filter Orientation",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text("Roll: $roll°")
+                Text("Pitch: $pitch°")
+                Text("Yaw: $yaw°")
+
             } else {
 
                 Text("Sensor readings will appear after calibration.")
             }
 
             Text("Recording: $recordingStatus")
+
+            Text(
+                text = "Firebase: $uploadStatus",
+                style = MaterialTheme.typography.bodyMedium
+            )
 
             Button(
                 enabled = serialPort != null &&
@@ -760,7 +809,7 @@ fun GaitIMUScreen() {
                                 )
 
                                 fileOutput?.write(
-                                    "timestamp,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3\n"
+                                    "timestamp,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3,roll,pitch,yaw,q0,q1,q2,q3\n"
                                         .toByteArray(Charsets.UTF_8)
                                 )
 
@@ -792,10 +841,15 @@ fun GaitIMUScreen() {
                 )
             }
 
+
             Button(
                 enabled = recording,
                 onClick = {
                     var saveSuccessful = false
+
+                    // Capture these before clearing the patient name
+                    val savedPatientName = patientName.trim()
+                    val savedCsvFile = csvFile
 
                     try {
                         fileOutput?.flush()
@@ -806,7 +860,7 @@ fun GaitIMUScreen() {
 
                         saveSuccessful = true
                         recordingStatus =
-                            "Saved: ${csvFile?.name ?: "CSV file"}"
+                            "Saved: ${savedCsvFile?.name ?: "CSV file"}"
 
                     } catch (e: Exception) {
                         recordingStatus = "Save/close error: ${e.message}"
@@ -828,14 +882,39 @@ fun GaitIMUScreen() {
                         calibrationRemaining = 10
 
                         calibrationStatus = "Calibration required for next session"
+
                         if (saveSuccessful) {
                             patientName = ""
+                        }
+                    }
+
+                    // Upload only after the CSV has been saved successfully
+                    if (saveSuccessful && savedCsvFile != null) {
+                        scope.launch {
+                            try {
+                                uploadStatus = "Uploading CSV to Firebase..."
+
+                                val result = firebaseRepository.uploadCsv(
+                                    csvFile = savedCsvFile,
+                                    patientName = savedPatientName
+                                )
+
+                                uploadStatus = "Upload successful!"
+                                recordingStatus =
+                                    "Saved and uploaded: ${savedCsvFile.name}"
+
+                            } catch (e: Exception) {
+                                uploadStatus = "Upload failed: ${e.message}"
+                                recordingStatus =
+                                    "CSV saved locally, but Firebase upload failed."
+                            }
                         }
                     }
                 }
             ) {
                 Text("Stop Recording")
             }
+
 
             Text(
                 "CSV files are saved in the app's private files folder.",

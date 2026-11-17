@@ -1,6 +1,5 @@
-package com.example.gaitimudemo.ui.theme
+package com.robobionics.gaitimudemo.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

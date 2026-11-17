@@ -1,4 +1,4 @@
-package com.example.gaitimudemo.ui.theme
+package com.robobionics.gaitimudemo.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
