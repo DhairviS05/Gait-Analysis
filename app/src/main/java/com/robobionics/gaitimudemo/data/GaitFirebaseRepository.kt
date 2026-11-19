@@ -40,8 +40,12 @@ class GaitFirebaseRepository {
 
         val sessionId = UUID.randomUUID().toString()
 
+        val timestamp = csvFile.nameWithoutExtension.removePrefix("test_")
+
+        val cloudFileName = "${safePatientName}_$timestamp.csv"
+
         val storagePath =
-            "gaitAnalysisLeg/$safePatientName/${sessionId}_${csvFile.name}"
+            "gaitAnalysisLeg/$safePatientName/$cloudFileName"
 
         val metadata = StorageMetadata.Builder()
             .setContentType("text/csv")
@@ -64,7 +68,7 @@ class GaitFirebaseRepository {
         val sessionData = hashMapOf(
             "sessionId" to sessionId,
             "patientName" to patientName.trim(),
-            "fileName" to csvFile.name,
+            "fileName" to cloudFileName,
             "storagePath" to storagePath,
             "downloadUrl" to downloadUrl,
             "uploadedAt" to FieldValue.serverTimestamp(),

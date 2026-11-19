@@ -759,7 +759,6 @@ fun GaitIMUScreen() {
                 text = "Firebase: $uploadStatus",
                 style = MaterialTheme.typography.bodyMedium
             )
-
             Button(
                 enabled = serialPort != null &&
                         !recording,
