@@ -1,6 +1,7 @@
 package com.robobionics.gaitimudemo
 import com.robobionics.gaitimudemo.data.GaitFirebaseRepository
 
+import android.util.Log
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -41,7 +42,7 @@ import androidx.compose.foundation.verticalScroll
 
 private const val USB_PERMISSION_ACTION =
     "com.robobionics.gaitimudemo.USB_PERMISSION"
-
+private const val TAG = "GaitDebug"
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -121,6 +122,12 @@ fun GaitIMUScreen() {
     var q2 by remember { mutableStateOf(0.0) }
     var q3 by remember { mutableStateOf(0.0) }
 
+    var flexDeg by remember { mutableStateOf("--") }
+    var tiltDeg by remember { mutableStateOf("--") }
+
+    var accUsed by remember { mutableStateOf("--") }
+    var stationary by remember { mutableStateOf("--") }
+
     fun clearSensorValues() {
         ax = "--"
         ay = "--"
@@ -139,6 +146,11 @@ fun GaitIMUScreen() {
         yaw = "--"
 
         timestamp = "--"
+
+        flexDeg = "--"
+        tiltDeg = "--"
+        accUsed = "--"
+        stationary = "--"
     }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -169,45 +181,11 @@ fun GaitIMUScreen() {
 
     var fileOutput by remember { mutableStateOf<FileOutputStream?>(null) }
 
-    // Process one complete CSV line from the Arduino.
-//    val processLine: (String) -> Unit = { line ->
-//        val parts = line.trim().split(",")
-//
-//        if (parts.size == 7) {
-//            val numbers = parts.map { it.trim().toFloatOrNull() }
-//
-//            if (numbers.all { it != null }) {
-//                timestamp = parts[0]
-//                ax = parts[1]
-//                ay = parts[2]
-//                az = parts[3]
-//                gx = parts[4]
-//                gy = parts[5]
-//                gz = parts[6]
-//
-//                if (recording) {
-//                    try {
-//                        fileOutput?.write(
-//                            (line.trim() + "\n").toByteArray(Charsets.UTF_8)
-//                        )
-//                        fileOutput?.flush()
-//                    } catch (e: Exception) {
-//                        recording = false
-//                        recordingStatus = "File error: ${e.message}"
-//                        try {
-//                            fileOutput?.close()
-//                        } catch (_: Exception) {
-//                        }
-//                        fileOutput = null
-//                    }
-//                }
-//            }
-//        }
-//    }
-
     // Arduino format:
 // DATA,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3
     val processLine: (String) -> Unit = { line ->
+
+        Log.d(TAG, "Received from Arduino: $line")
 
         val parts = line.trim().split(",")
 
@@ -216,6 +194,8 @@ fun GaitIMUScreen() {
         // =============================================
 
         if (parts.isNotEmpty() && parts[0] == "STATUS") {
+
+            Log.d(TAG, "Status message received: ${parts.joinToString(",")}")
 
             when (parts.getOrNull(1)) {
 
@@ -284,20 +264,55 @@ fun GaitIMUScreen() {
         // Expected format:
         // DATA,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3
 
+
+// =============================================
+// 2. HANDLE SENSOR DATA
+// =============================================
+
+// Expected format:
+// DATA,time_ms,ax,ay,az,gx,gy,gz,
+// q0,q1,q2,q3,flex_deg,tilt_deg,
+// acc_used,stationary,mmg1,mmg2,mmg3
+
+
         if (parts.size == 18 && parts[0].trim() == "DATA") {
 
             val values = parts.drop(1).map { it.trim() }
 
+            // New Arduino format:
+            // 0  = millis
+            // 1  = ax
+            // 2  = ay
+            // 3  = az
+            // 4  = gx
+            // 5  = gy
+            // 6  = gz
+            // 7  = mmg1
+            // 8  = mmg2
+            // 9  = mmg3
+            // 10 = flex_deg
+            // 11 = tilt_deg
+            // 12 = q0
+            // 13 = q1
+            // 14 = q2
+            // 15 = q3
+            // 16 = flags
+
             val validTime = values[0].toLongOrNull() != null
 
-            val validSensors = values.drop(1).all {
-                it.toFloatOrNull() != null
+            // All sensor and orientation values must be numeric.
+            val validSensors = (1..15).all {
+                values[it].toFloatOrNull() != null
             }
 
-            if (validTime && validSensors && calibrationReady) {
+            // Arduino sends one combined flags integer.
+            val flags = values[16].toIntOrNull()
+
+            if (validTime && validSensors &&
+                flags != null && calibrationReady) {
 
                 timestamp = SimpleDateFormat(
-                    "MM-dd-yyyy.HH.mm.ss",
+                    "MM-dd-yyyy.HH.mm.ss.SSS",
                     Locale.US
                 ).format(Date())
 
@@ -311,27 +326,33 @@ fun GaitIMUScreen() {
                 gy = values[5]
                 gz = values[6]
 
-                // MMG
+                // MMG sensors
                 mmg1 = values[7]
                 mmg2 = values[8]
                 mmg3 = values[9]
 
-                // Complementary Filter Orientation
-                roll = values[10]
-                pitch = values[11]
-                yaw = values[12]
+                // Calculated angles
+                flexDeg = values[10]
+                tiltDeg = values[11]
 
-                // Quaternion Orientation
-                q0 = values[13].toDouble()
-                q1 = values[14].toDouble()
-                q2 = values[15].toDouble()
-                q3 = values[16].toDouble()
+                // Quaternion
+                q0 = values[12].toDouble()
+                q1 = values[13].toDouble()
+                q2 = values[14].toDouble()
+                q3 = values[15].toDouble()
 
-                // Save CSV only during recording.
+                // Decode combined flags
+                accUsed = if ((flags and 1) != 0) "Yes" else "No"
+                stationary = if ((flags and 2) != 0) "Yes" else "No"
+
+                Log.d(TAG, "Parsed sensor data successfully")
+                Log.d(TAG, "AX=$ax AY=$ay AZ=$az")
+                Log.d(TAG, "GX=$gx GY=$gy GZ=$gz")
+                Log.d(TAG, "MMG1=$mmg1 MMG2=$mmg2 MMG3=$mmg3")
+
+                // Save CSV only during recording
                 if (recording) {
-
                     try {
-
                         val csvRow = listOf(timestamp) + values
 
                         fileOutput?.write(
@@ -342,9 +363,7 @@ fun GaitIMUScreen() {
                     } catch (e: Exception) {
 
                         recording = false
-
-                        recordingStatus =
-                            "File error: ${e.message}"
+                        recordingStatus = "File error: ${e.message}"
 
                         try {
                             fileOutput?.close()
@@ -354,8 +373,17 @@ fun GaitIMUScreen() {
                         fileOutput = null
                     }
                 }
+
+            } else {
+                Log.w(
+                    TAG,
+                    "Invalid DATA message: time=$validTime, " +
+                            "sensors=$validSensors, flags=$flags, " +
+                            "calibrationReady=$calibrationReady"
+                )
             }
         }
+
     }
 
     // Open the serial port only after USB permission has been granted.
@@ -414,6 +442,7 @@ fun GaitIMUScreen() {
                                     val count = port.read(buffer, 1000)
 
                                     if (count > 0) {
+                                        Log.d(TAG, "USB bytes received: $count")
                                         val chunk = String(
                                             buffer,
                                             0,
@@ -447,6 +476,7 @@ fun GaitIMUScreen() {
                                     }
                                 }
                             } catch (e: Exception) {
+                                Log.e(TAG, "USB serial reading error", e)
                                 withContext(Dispatchers.Main) {
                                     if (serialPort === port) {
                                         connectionStatus =
@@ -739,14 +769,36 @@ fun GaitIMUScreen() {
 
                 HorizontalDivider()
 
+
                 Text(
-                    "Complementary Filter Orientation",
+                    "Quaternion Orientation",
                     style = MaterialTheme.typography.titleMedium
                 )
 
-                Text("Roll: $roll°")
-                Text("Pitch: $pitch°")
-                Text("Yaw: $yaw°")
+                Text("Q0: $q0")
+                Text("Q1: $q1")
+                Text("Q2: $q2")
+                Text("Q3: $q3")
+
+                HorizontalDivider()
+
+                Text(
+                    "Calculated Angles",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text("Flexion: $flexDeg°")
+                Text("Tilt: $tiltDeg°")
+
+                HorizontalDivider()
+
+                Text(
+                    "Sensor Status",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text("Accelerometer Used: $accUsed")
+                Text("Stationary: $stationary")
 
             } else {
 
@@ -771,9 +823,17 @@ fun GaitIMUScreen() {
                             calibrationRemaining = 10
                             calibrationStatus = "Sending calibration command to Arduino..."
 
+//                            val command = "CALIBRATE\n".toByteArray(Charsets.UTF_8)
+//
+//                            serialPort?.write(command, 1000)
+
                             val command = "CALIBRATE\n".toByteArray(Charsets.UTF_8)
 
-                            serialPort?.write(command, 1000)
+                            Log.d(TAG, "Sending calibration command to Arduino")
+
+                            val bytesWritten = serialPort?.write(command, 1000)
+
+                            Log.d(TAG, "Calibration command write completed: $bytesWritten bytes")
 
                         } catch (e: Exception) {
 
@@ -808,7 +868,7 @@ fun GaitIMUScreen() {
                                 )
 
                                 fileOutput?.write(
-                                    "timestamp,time_ms,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3,roll,pitch,yaw,q0,q1,q2,q3\n"
+                                    "timestamp,millis,ax,ay,az,gx,gy,gz,mmg1,mmg2,mmg3,flex_deg,tilt_deg,q0,q1,q2,q3,flags\n"
                                         .toByteArray(Charsets.UTF_8)
                                 )
 
